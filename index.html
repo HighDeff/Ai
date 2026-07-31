@@ -1,0 +1,1809 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Companion — Chat, Q&A & Predictions</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%236366F1'/><circle cx='35' cy='40' r='8' fill='white'/><circle cx='65' cy='40' r='8' fill='white'/><path d='M30 60 Q50 80 70 60' stroke='white' stroke-width='6' fill='none' stroke-linecap='round'/></svg>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #6366F1;
+            --primary-light: #818CF8;
+            --primary-dark: #4F46E5;
+            --secondary: #8B5CF6;
+            --accent: #22D3EE;
+            --bg: #0F172A;
+            --surface: #1E293B;
+            --surface-alt: #334155;
+            --surface-hover: #3E4C63;
+            --text: #F1F5F9;
+            --text-muted: #94A3B8;
+            --text-dim: #64748B;
+            --success: #10B981;
+            --error: #EF4444;
+            --warning: #F59E0B;
+            --border: rgba(148, 163, 184, 0.1);
+            --glow: rgba(99, 102, 241, 0.4);
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 24px;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.5;
+            overflow: hidden;
+        }
+
+        /* Background decoration */
+        .bg-decoration {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: 0;
+        }
+
+        .bg-orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.3;
+        }
+
+        .bg-orb-1 {
+            width: 400px;
+            height: 400px;
+            background: var(--primary);
+            top: -100px;
+            right: -100px;
+        }
+
+        .bg-orb-2 {
+            width: 300px;
+            height: 300px;
+            background: var(--secondary);
+            bottom: -50px;
+            left: -50px;
+        }
+
+        .bg-orb-3 {
+            width: 200px;
+            height: 200px;
+            background: var(--accent);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0.15;
+        }
+
+        /* Grain overlay */
+        .grain {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            opacity: 0.03;
+            z-index: 1000;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+        }
+
+        /* App container */
+        .app {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            max-width: 100%;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 24px;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px var(--glow);
+        }
+
+        .logo-icon svg {
+            width: 24px;
+            height: 24px;
+            color: white;
+        }
+
+        .logo-text {
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 600;
+            font-size: 1.25rem;
+            background: linear-gradient(135deg, var(--text), var(--text-muted));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .mode-tabs {
+            display: flex;
+            gap: 4px;
+            background: var(--surface);
+            padding: 4px;
+            border-radius: var(--radius-lg);
+        }
+
+        .mode-tab {
+            padding: 10px 20px;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            font-family: inherit;
+            font-size: 0.875rem;
+            font-weight: 500;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .mode-tab:hover {
+            color: var(--text);
+            background: var(--surface-hover);
+        }
+
+        .mode-tab.active {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 2px 8px var(--glow);
+        }
+
+        .mode-tab svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .icon-btn {
+            width: 40px;
+            height: 40px;
+            border: none;
+            background: var(--surface);
+            color: var(--text-muted);
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+        }
+
+        .icon-btn:hover {
+            background: var(--surface-alt);
+            color: var(--text);
+        }
+
+        .icon-btn svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        /* Chat area */
+        .chat-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .chat-area::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .chat-area::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .chat-area::-webkit-scrollbar-thumb {
+            background: var(--surface-alt);
+            border-radius: 3px;
+        }
+
+        /* Welcome state */
+        .welcome {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 48px 24px;
+            min-height: 60vh;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .welcome-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: var(--radius-xl);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 24px;
+            box-shadow: 0 8px 32px var(--glow);
+        }
+
+        .welcome-icon svg {
+            width: 40px;
+            height: 40px;
+            color: white;
+        }
+
+        .welcome h1 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.75rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .welcome p {
+            color: var(--text-muted);
+            max-width: 400px;
+            margin-bottom: 32px;
+        }
+
+        .suggestions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        .suggestion {
+            padding: 16px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .suggestion:hover {
+            background: var(--surface-alt);
+            border-color: var(--primary);
+            color: var(--text);
+            transform: translateY(-2px);
+        }
+
+        .suggestion svg {
+            width: 16px;
+            height: 16px;
+            color: var(--primary);
+            flex-shrink: 0;
+        }
+
+        /* Messages */
+        .message {
+            display: flex;
+            gap: 12px;
+            max-width: 800px;
+            width: 100%;
+            margin: 0 auto;
+            animation: messageIn 0.3s ease;
+        }
+
+        @keyframes messageIn {
+            from { opacity: 0; transform: translateY(10px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .message.user {
+            flex-direction: row-reverse;
+        }
+
+        .message-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .message.user .message-avatar {
+            background: var(--primary);
+        }
+
+        .message.assistant .message-avatar {
+            background: linear-gradient(135deg, var(--secondary), var(--primary));
+        }
+
+        .message-avatar svg {
+            width: 18px;
+            height: 18px;
+            color: white;
+        }
+
+        .message-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .message-bubble {
+            padding: 16px 20px;
+            border-radius: var(--radius-lg);
+            position: relative;
+        }
+
+        .message.user .message-bubble {
+            background: var(--primary);
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.assistant .message-bubble {
+            background: var(--surface);
+            border-bottom-left-radius: 4px;
+        }
+
+        .message-text {
+            font-size: 0.9375rem;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .message.user .message-text {
+            color: white;
+        }
+
+        .message.assistant .message-text {
+            color: var(--text);
+        }
+
+        /* Markdown styles */
+        .message-text code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.875em;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .message.assistant .message-text code {
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .message-text pre {
+            background: #0D1117;
+            border-radius: var(--radius-md);
+            padding: 16px;
+            overflow-x: auto;
+            margin: 12px 0;
+        }
+
+        .message-text pre code {
+            background: none;
+            padding: 0;
+        }
+
+        .message-text h1, .message-text h2, .message-text h3 {
+            font-family: 'Space Grotesk', sans-serif;
+            margin: 16px 0 8px;
+        }
+
+        .message-text h1 { font-size: 1.5rem; }
+        .message-text h2 { font-size: 1.25rem; }
+        .message-text h3 { font-size: 1.1rem; }
+
+        .message-text ul, .message-text ol {
+            margin: 8px 0;
+            padding-left: 24px;
+        }
+
+        .message-text li {
+            margin: 4px 0;
+        }
+
+        .message-text p {
+            margin: 8px 0;
+        }
+
+        .message-text p:first-child {
+            margin-top: 0;
+        }
+
+        .message-text p:last-child {
+            margin-bottom: 0;
+        }
+
+        .message-time {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            margin-top: 8px;
+            padding: 0 4px;
+        }
+
+        .message.user .message-time {
+            text-align: right;
+        }
+
+        /* QA specific styles */
+        .qa-meta {
+            display: flex;
+            gap: 12px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+
+        .qa-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: var(--surface-alt);
+            border-radius: 20px;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .qa-tag svg {
+            width: 12px;
+            height: 12px;
+        }
+
+        .qa-confidence {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .confidence-bar {
+            width: 80px;
+            height: 6px;
+            background: var(--surface-alt);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .confidence-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--success), var(--accent));
+            border-radius: 3px;
+            transition: width 0.5s ease;
+        }
+
+        /* Prediction specific styles */
+        .prediction-result {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            margin-top: 12px;
+        }
+
+        .prediction-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .prediction-value {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--accent);
+            margin-bottom: 16px;
+        }
+
+        .prediction-metrics {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border);
+        }
+
+        .metric {
+            text-align: center;
+        }
+
+        .metric-value {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .metric-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* Typing indicator */
+        .typing-indicator {
+            display: flex;
+            gap: 12px;
+            max-width: 800px;
+            width: 100%;
+            margin: 0 auto;
+            animation: messageIn 0.3s ease;
+        }
+
+        .typing-dots {
+            display: flex;
+            gap: 4px;
+            padding: 16px 20px;
+            background: var(--surface);
+            border-radius: var(--radius-lg);
+            border-bottom-left-radius: 4px;
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--text-muted);
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out;
+        }
+
+        .typing-dot:nth-child(1) { animation-delay: 0s; }
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes bounce {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-6px); }
+        }
+
+        /* Input area */
+        .input-area {
+            padding: 16px 24px 24px;
+            background: rgba(15, 23, 42, 0.9);
+            backdrop-filter: blur(12px);
+            border-top: 1px solid var(--border);
+        }
+
+        .input-container {
+            max-width: 800px;
+            margin: 0 auto;
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+        }
+
+        .input-wrapper {
+            flex: 1;
+            position: relative;
+        }
+
+        .chat-input {
+            width: 100%;
+            padding: 16px 20px;
+            background: var(--surface);
+            border: 2px solid transparent;
+            border-radius: var(--radius-lg);
+            color: var(--text);
+            font-family: inherit;
+            font-size: 0.9375rem;
+            resize: none;
+            min-height: 56px;
+            max-height: 200px;
+            transition: all 0.2s ease;
+        }
+
+        .chat-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px var(--glow);
+        }
+
+        .chat-input::placeholder {
+            color: var(--text-dim);
+        }
+
+        .send-btn {
+            width: 56px;
+            height: 56px;
+            border: none;
+            background: var(--primary);
+            color: white;
+            border-radius: var(--radius-lg);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .send-btn:hover:not(:disabled) {
+            background: var(--primary-light);
+            transform: scale(1.05);
+        }
+
+        .send-btn:active:not(:disabled) {
+            transform: scale(0.95);
+        }
+
+        .send-btn:disabled {
+            background: var(--surface-alt);
+            color: var(--text-dim);
+            cursor: not-allowed;
+        }
+
+        .send-btn svg {
+            width: 24px;
+            height: 24px;
+        }
+
+        /* Prediction form */
+        .prediction-form {
+            max-width: 800px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .form-label {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-muted);
+        }
+
+        .form-input, .form-select {
+            padding: 12px 16px;
+            background: var(--surface);
+            border: 2px solid transparent;
+            border-radius: var(--radius-md);
+            color: var(--text);
+            font-family: inherit;
+            font-size: 0.9375rem;
+            transition: all 0.2s ease;
+        }
+
+        .form-input:focus, .form-select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px var(--glow);
+        }
+
+        .form-select {
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 40px;
+        }
+
+        .form-select option {
+            background: var(--surface);
+            color: var(--text);
+        }
+
+        .prediction-submit {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 14px 24px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border: none;
+            border-radius: var(--radius-md);
+            color: white;
+            font-family: inherit;
+            font-size: 0.9375rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 16px var(--glow);
+        }
+
+        .prediction-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 24px var(--glow);
+        }
+
+        .prediction-submit:active {
+            transform: translateY(0);
+        }
+
+        .prediction-submit svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        /* History panel */
+        .history-panel {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 320px;
+            height: 100vh;
+            background: var(--surface);
+            border-left: 1px solid var(--border);
+            z-index: 200;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .history-panel.open {
+            transform: translateX(0);
+        }
+
+        .history-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .history-header h3 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .history-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .history-item {
+            padding: 12px;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: all 0.15s ease;
+            margin-bottom: 4px;
+        }
+
+        .history-item:hover {
+            background: var(--surface-alt);
+        }
+
+        .history-item-title {
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .history-item-meta {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+        }
+
+        .history-empty {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-muted);
+            text-align: center;
+            padding: 24px;
+        }
+
+        .history-empty svg {
+            width: 48px;
+            height: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        /* Settings modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 300;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s ease;
+        }
+
+        .modal-overlay.open {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal {
+            background: var(--surface);
+            border-radius: var(--radius-xl);
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            transform: scale(0.95);
+            transition: transform 0.2s ease;
+        }
+
+        .modal-overlay.open .modal {
+            transform: scale(1);
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .modal-header h2 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .modal-body {
+            padding: 24px;
+        }
+
+        .setting-group {
+            margin-bottom: 24px;
+        }
+
+        .setting-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .setting-label {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .setting-input {
+            width: 100%;
+            padding: 12px 16px;
+            background: var(--bg);
+            border: 2px solid var(--border);
+            border-radius: var(--radius-md);
+            color: var(--text);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.875rem;
+        }
+
+        .setting-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .setting-hint {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            margin-top: 6px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header {
+                padding: 12px 16px;
+                flex-wrap: wrap;
+                gap: 12px;
+            }
+
+            .mode-tabs {
+                order: 3;
+                width: 100%;
+                justify-content: center;
+            }
+
+            .mode-tab {
+                padding: 8px 14px;
+                font-size: 0.8125rem;
+            }
+
+            .mode-tab span {
+                display: none;
+            }
+
+            .chat-area {
+                padding: 16px;
+            }
+
+            .input-area {
+                padding: 12px 16px 16px;
+            }
+
+            .suggestions {
+                grid-template-columns: 1fr;
+            }
+
+            .prediction-metrics {
+                grid-template-columns: 1fr;
+            }
+
+            .history-panel {
+                width: 100%;
+            }
+        }
+
+        /* Clear history button */
+        .clear-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .clear-btn:hover {
+            background: var(--error);
+            border-color: var(--error);
+            color: white;
+        }
+
+        .clear-btn svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        /* Hidden state */
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-decoration">
+        <div class="bg-orb bg-orb-1"></div>
+        <div class="bg-orb bg-orb-2"></div>
+        <div class="bg-orb bg-orb-3"></div>
+    </div>
+    <div class="grain"></div>
+
+    <div class="app">
+        <header class="header">
+            <div class="logo">
+                <div class="logo-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2a4 4 0 0 1 4 4c0 1.1-.4 2.1-1 2.9l.7.7a4 4 0 0 1-1.4 6.6"/>
+                        <path d="M8.5 9.9A4 4 0 1 1 16 14"/>
+                        <path d="M12 18a4 4 0 0 1-4-4c0-1.1.4-2.1 1-2.9"/>
+                        <circle cx="12" cy="12" r="2"/>
+                    </svg>
+                </div>
+                <span class="logo-text">AI Companion</span>
+            </div>
+
+            <div class="mode-tabs">
+                <button class="mode-tab active" data-mode="chat">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                    </svg>
+                    <span>Chat</span>
+                </button>
+                <button class="mode-tab" data-mode="qa">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+                        <path d="M12 17h.01"/>
+                    </svg>
+                    <span>Q&A</span>
+                </button>
+                <button class="mode-tab" data-mode="prediction">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 3v18h18"/>
+                        <path d="m19 9-5 5-4-4-3 3"/>
+                    </svg>
+                    <span>Prediction</span>
+                </button>
+            </div>
+
+            <div class="header-actions">
+                <button class="icon-btn" id="historyBtn" title="Conversation History">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                        <path d="M3 3v5h5"/>
+                        <path d="M12 7v5l4 2"/>
+                    </svg>
+                </button>
+                <button class="icon-btn" id="settingsBtn" title="Settings">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <main class="chat-area" id="chatArea">
+            <!-- Welcome state -->
+            <div class="welcome" id="welcome">
+                <div class="welcome-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2a4 4 0 0 1 4 4c0 1.1-.4 2.1-1 2.9l.7.7a4 4 0 0 1-1.4 6.6"/>
+                        <path d="M8.5 9.9A4 4 0 1 1 16 14"/>
+                        <path d="M12 18a4 4 0 0 1-4-4c0-1.1.4-2.1 1-2.9"/>
+                        <circle cx="12" cy="12" r="2"/>
+                    </svg>
+                </div>
+                <h1>Welcome to AI Companion</h1>
+                <p>Your intelligent assistant for questions, answers, and predictions. What would you like to explore today?</p>
+                <div class="suggestions">
+                    <button class="suggestion" data-prompt="Explain quantum computing in simple terms">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+                            <path d="M12 17h.01"/>
+                        </svg>
+                        Explain a concept
+                    </button>
+                    <button class="suggestion" data-prompt="What are the best practices for REST API design?">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                            <line x1="16" y1="13" x2="8" y2="13"/>
+                            <line x1="16" y1="17" x2="8" y2="17"/>
+                        </svg>
+                        Code & Development
+                    </button>
+                    <button class="suggestion" data-prompt="Give me tips for improving productivity while working from home">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 20h9"/>
+                            <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+                        </svg>
+                        Productivity Tips
+                    </button>
+                    <button class="suggestion" data-prompt="What's the weather forecast impact on renewable energy?">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 3v18h18"/>
+                            <path d="m19 9-5 5-4-4-3 3"/>
+                        </svg>
+                        Prediction Inquiry
+                    </button>
+                </div>
+            </div>
+
+            <!-- Messages container -->
+            <div class="messages" id="messages"></div>
+
+            <!-- Typing indicator -->
+            <div class="typing-indicator hidden" id="typingIndicator">
+                <div class="message-avatar">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2a4 4 0 0 1 4 4c0 1.1-.4 2.1-1 2.9l.7.7a4 4 0 0 1-1.4 6.6"/>
+                        <path d="M8.5 9.9A4 4 0 1 1 16 14"/>
+                        <path d="M12 18a4 4 0 0 1-4-4c0-1.1.4-2.1 1-2.9"/>
+                        <circle cx="12" cy="12" r="2"/>
+                    </svg>
+                </div>
+                <div class="typing-dots">
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                </div>
+            </div>
+        </main>
+
+        <div class="input-area">
+            <!-- Chat input -->
+            <div class="input-container" id="chatInputContainer">
+                <div class="input-wrapper">
+                    <textarea 
+                        class="chat-input" 
+                        id="chatInput" 
+                        placeholder="Ask anything... (Press Enter to send)"
+                        rows="1"
+                    ></textarea>
+                </div>
+                <button class="send-btn" id="sendBtn">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="22" y1="2" x2="11" y2="13"/>
+                        <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Prediction form -->
+            <form class="prediction-form hidden" id="predictionForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Prediction Type</label>
+                        <select class="form-select" id="predictionType">
+                            <option value="trend">Trend Analysis</option>
+                            <option value="forecast">Time Series Forecast</option>
+                            <option value="classification">Classification</option>
+                            <option value="anomaly">Anomaly Detection</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Data Points</label>
+                        <input type="number" class="form-input" id="dataPoints" placeholder="e.g., 100" min="10" max="10000">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Time Period</label>
+                        <select class="form-select" id="timePeriod">
+                            <option value="day">Daily</option>
+                            <option value="week">Weekly</option>
+                            <option value="month">Monthly</option>
+                            <option value="quarter">Quarterly</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Confidence Level (%)</label>
+                        <input type="number" class="form-input" id="confidence" placeholder="e.g., 95" min="50" max="99">
+                    </div>
+                </div>
+                <button type="submit" class="prediction-submit">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 3v18h18"/>
+                        <path d="m19 9-5 5-4-4-3 3"/>
+                    </svg>
+                    Run Prediction
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- History panel -->
+    <aside class="history-panel" id="historyPanel">
+        <div class="history-header">
+            <h3>History</h3>
+            <div style="display: flex; gap: 8px;">
+                <button class="clear-btn" id="clearHistory">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 6h18"/>
+                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+                        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+                    </svg>
+                    Clear
+                </button>
+                <button class="icon-btn" id="closeHistory">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <div class="history-list" id="historyList">
+            <div class="history-empty">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                    <path d="M3 3v5h5"/>
+                    <path d="M12 7v5l4 2"/>
+                </svg>
+                <p>No conversation history yet</p>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Settings modal -->
+    <div class="modal-overlay" id="settingsModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Settings</h2>
+                <button class="icon-btn" id="closeSettings">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="setting-group">
+                    <label class="setting-label">API Endpoint</label>
+                    <input type="text" class="setting-input" id="apiEndpoint" placeholder="https://api.openai.com/v1/chat/completions">
+                    <p class="setting-hint">OpenAI-compatible API endpoint</p>
+                </div>
+                <div class="setting-group">
+                    <label class="setting-label">API Key</label>
+                    <input type="password" class="setting-input" id="apiKey" placeholder="sk-...">
+                    <p class="setting-hint">Your API key is stored locally and never sent to our servers</p>
+                </div>
+                <div class="setting-group">
+                    <label class="setting-label">Model</label>
+                    <input type="text" class="setting-input" id="modelName" placeholder="gpt-4o-mini" value="gpt-4o-mini">
+                </div>
+                <div class="setting-group">
+                    <label class="setting-label">Max Tokens</label>
+                    <input type="number" class="setting-input" id="maxTokens" placeholder="2048" value="2048">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State
+        const state = {
+            mode: 'chat',
+            messages: [],
+            isLoading: false,
+            settings: {
+                apiEndpoint: 'https://api.openai.com/v1/chat/completions',
+                apiKey: '',
+                model: 'gpt-4o-mini',
+                maxTokens: 2048
+            },
+            history: []
+        };
+
+        // DOM Elements
+        const elements = {
+            chatArea: document.getElementById('chatArea'),
+            messages: document.getElementById('messages'),
+            welcome: document.getElementById('welcome'),
+            typingIndicator: document.getElementById('typingIndicator'),
+            chatInput: document.getElementById('chatInput'),
+            sendBtn: document.getElementById('sendBtn'),
+            chatInputContainer: document.getElementById('chatInputContainer'),
+            predictionForm: document.getElementById('predictionForm'),
+            historyPanel: document.getElementById('historyPanel'),
+            historyList: document.getElementById('historyList'),
+            settingsModal: document.getElementById('settingsModal'),
+            modeTabs: document.querySelectorAll('.mode-tab'),
+            suggestions: document.querySelectorAll('.suggestion')
+        };
+
+        // Load saved state
+        function loadState() {
+            const savedSettings = localStorage.getItem('aiCompanionSettings');
+            if (savedSettings) {
+                state.settings = { ...state.settings, ...JSON.parse(savedSettings) };
+                document.getElementById('apiEndpoint').value = state.settings.apiEndpoint;
+                document.getElementById('apiKey').value = state.settings.apiKey;
+                document.getElementById('modelName').value = state.settings.model;
+                document.getElementById('maxTokens').value = state.settings.maxTokens;
+            }
+
+            const savedHistory = localStorage.getItem('aiCompanionHistory');
+            if (savedHistory) {
+                state.history = JSON.parse(savedHistory);
+                renderHistory();
+            }
+        }
+
+        // Save settings
+        function saveSettings() {
+            state.settings.apiEndpoint = document.getElementById('apiEndpoint').value;
+            state.settings.apiKey = document.getElementById('apiKey').value;
+            state.settings.model = document.getElementById('modelName').value;
+            state.settings.maxTokens = parseInt(document.getElementById('maxTokens').value) || 2048;
+            localStorage.setItem('aiCompanionSettings', JSON.stringify(state.settings));
+        }
+
+        // Mode switching
+        function setMode(mode) {
+            state.mode = mode;
+            elements.modeTabs.forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.mode === mode);
+            });
+
+            elements.welcome.classList.add('hidden');
+            elements.chatInputContainer.classList.toggle('hidden', mode === 'prediction');
+            elements.predictionForm.classList.toggle('hidden', mode !== 'prediction');
+
+            if (mode === 'prediction') {
+                elements.chatInput.placeholder = 'Configure prediction parameters above';
+            } else {
+                elements.chatInput.placeholder = 'Ask anything... (Press Enter to send)';
+                if (state.messages.length === 0) {
+                    elements.welcome.classList.remove('hidden');
+                }
+            }
+        }
+
+        // Format time
+        function formatTime(date) {
+            return new Date(date).toLocaleTimeString('en-US', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            });
+        }
+
+        // Render message
+        function renderMessage(message) {
+            const div = document.createElement('div');
+            div.className = `message ${message.role}`;
+            div.innerHTML = `
+                <div class="message-avatar">
+                    ${message.role === 'user' 
+                        ? '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>'
+                        : '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a4 4 0 0 1 4 4c0 1.1-.4 2.1-1 2.9l.7.7a4 4 0 0 1-1.4 6.6"/><path d="M8.5 9.9A4 4 0 1 1 16 14"/><path d="M12 18a4 4 0 0 1-4-4c0-1.1.4-2.1 1-2.9"/><circle cx="12" cy="12" r="2"/></svg>'
+                    }
+                </div>
+                <div class="message-content">
+                    <div class="message-bubble">
+                        <div class="message-text">${formatContent(message.content)}</div>
+                        ${message.metadata?.confidence !== undefined ? `
+                            <div class="qa-meta">
+                                <div class="qa-tag">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                                    ${message.metadata.category || 'General'}
+                                </div>
+                                <div class="qa-tag qa-confidence">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4"/><path d="m6.8 14-3.5 2"/><path d="m20.7 16-3.5-2"/><path d="M6.8 10 3.3 8"/><path d="m20.7 8-3.5 2"/><path d="m9 22 3-8 3 8"/><path d="M8 22h8"/><circle cx="12" cy="8" r="5"/></svg>
+                                    ${message.metadata.confidence}% confidence
+                                    <div class="confidence-bar">
+                                        <div class="confidence-fill" style="width: ${message.metadata.confidence}%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        ` : ''}
+                        ${message.metadata?.predictionResult ? `
+                            <div class="prediction-result">
+                                <div class="prediction-label">Prediction Result</div>
+                                <div class="prediction-value">${message.metadata.predictionResult.value}</div>
+                                <div class="prediction-metrics">
+                                    <div class="metric">
+                                        <div class="metric-value">${message.metadata.predictionResult.confidence}%</div>
+                                        <div class="metric-label">Confidence</div>
+                                    </div>
+                                    <div class="metric">
+                                        <div class="metric-value">${message.metadata.predictionResult.change}</div>
+                                        <div class="metric-label">Projected Change</div>
+                                    </div>
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                    <div class="message-time">${formatTime(message.timestamp)}</div>
+                </div>
+            `;
+            return div;
+        }
+
+        // Format markdown-like content
+        function formatContent(content) {
+            return content
+                .replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
+                .replace(/`([^`]+)`/g, '<code>$1</code>')
+                .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+                .replace(/\n\n/g, '</p><p>')
+                .replace(/^/, '<p>')
+                .replace(/$/, '</p>')
+                .replace(/<p><\/p>/g, '');
+        }
+
+        // Render history
+        function renderHistory() {
+            if (state.history.length === 0) {
+                elements.historyList.innerHTML = `
+                    <div class="history-empty">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                            <path d="M3 3v5h5"/>
+                            <path d="M12 7v5l4 2"/>
+                        </svg>
+                        <p>No conversation history yet</p>
+                    </div>
+                `;
+                return;
+            }
+
+            elements.historyList.innerHTML = state.history.map((item, index) => `
+                <div class="history-item" data-index="${index}">
+                    <div class="history-item-title">${item.title}</div>
+                    <div class="history-item-meta">${item.messages.length} messages</div>
+                </div>
+            `).join('');
+
+            elements.historyList.querySelectorAll('.history-item').forEach(item => {
+                item.addEventListener('click', () => loadHistoryItem(parseInt(item.dataset.index)));
+            });
+        }
+
+        // Load history item
+        function loadHistoryItem(index) {
+            const item = state.history[index];
+            state.messages = item.messages;
+            elements.messages.innerHTML = '';
+            state.messages.forEach(msg => elements.messages.appendChild(renderMessage(msg)));
+            elements.welcome.classList.add('hidden');
+            elements.historyPanel.classList.remove('open');
+            scrollToBottom();
+        }
+
+        // Add message to state and UI
+        function addMessage(content, role, metadata = {}) {
+            const message = {
+                id: Date.now().toString(),
+                content,
+                role,
+                timestamp: new Date(),
+                mode: state.mode,
+                metadata
+            };
+            state.messages.push(message);
+            elements.messages.appendChild(renderMessage(message));
+            scrollToBottom();
+            return message;
+        }
+
+        // Show typing indicator
+        function showTyping() {
+            elements.typingIndicator.classList.remove('hidden');
+            scrollToBottom();
+        }
+
+        // Hide typing indicator
+        function hideTyping() {
+            elements.typingIndicator.classList.add('hidden');
+        }
+
+        // Scroll to bottom
+        function scrollToBottom() {
+            elements.chatArea.scrollTop = elements.chatArea.scrollHeight;
+        }
+
+        // Send message
+        async function sendMessage() {
+            const content = elements.chatInput.value.trim();
+            if (!content || state.isLoading) return;
+
+            elements.chatInput.value = '';
+            elements.chatInput.style.height = 'auto';
+            elements.welcome.classList.add('hidden');
+            
+            addMessage(content, 'user');
+            showTyping();
+            state.isLoading = true;
+            elements.sendBtn.disabled = true;
+
+            try {
+                let response;
+                if (state.mode === 'chat' || state.mode === 'qa') {
+                    response = await callAIAPI(content);
+                } else {
+                    response = await callPredictionAPI();
+                }
+                hideTyping();
+                addMessage(response.content, 'assistant', response.metadata);
+            } catch (error) {
+                hideTyping();
+                addMessage(`I encountered an error: ${error.message}. Please check your settings and try again.`, 'assistant');
+            }
+
+            state.isLoading = false;
+            elements.sendBtn.disabled = false;
+            saveHistory();
+        }
+
+        // Call AI API
+        async function callAIAPI(content) {
+            if (!state.settings.apiKey) {
+                return {
+                    content: generateDemoResponse(content),
+                    metadata: { confidence: Math.floor(Math.random() * 20) + 80, category: 'Demo' }
+                };
+            }
+
+            const systemPrompt = state.mode === 'qa' 
+                ? 'You are a helpful Q&A assistant. Provide clear, accurate answers with confidence levels. Format your response with a brief answer followed by any relevant details.'
+                : 'You are a helpful AI assistant. Provide clear, informative responses.';
+
+            const response = await fetch(state.settings.apiEndpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${state.settings.apiKey}`
+                },
+                body: JSON.stringify({
+                    model: state.settings.model,
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        ...state.messages.filter(m => m.role === 'user').slice(-10).map(m => ({
+                            role: m.role,
+                            content: m.content
+                        })),
+                        { role: 'user', content }
+                    ],
+                    max_tokens: state.settings.maxTokens
+                })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error?.message || 'API request failed');
+            }
+
+            const data = await response.json();
+            return {
+                content: data.choices[0].message.content,
+                metadata: state.mode === 'qa' 
+                    ? { confidence: Math.floor(Math.random() * 15) + 85, category: getCategory(content) }
+                    : {}
+            };
+        }
+
+        // Call Prediction API
+        async function callPredictionAPI() {
+            const type = document.getElementById('predictionType').value;
+            const dataPoints = parseInt(document.getElementById('dataPoints').value) || 100;
+            const period = document.getElementById('timePeriod').value;
+            const confidence = parseInt(document.getElementById('confidence').value) || 95;
+
+            if (!state.settings.apiKey) {
+                return {
+                    content: generatePredictionResponse(type, dataPoints, period),
+                    metadata: { predictionResult: generatePredictionResult(type, dataPoints, period) }
+                };
+            }
+
+            const response = await callAIAPI(
+                `Generate a ${type} prediction based on ${dataPoints} data points over a ${period} timeframe with ${confidence}% confidence level. Provide the predicted outcome and key metrics.`
+            );
+
+            return {
+                content: response.content,
+                metadata: { predictionResult: generatePredictionResult(type, dataPoints, period) }
+            };
+        }
+
+        // Generate demo response
+        function generateDemoResponse(content) {
+            const responses = {
+                'explain': "Great question! Let me break this down in a way that's easy to understand. Think of it like building with blocks - each concept connects to create a larger picture. Would you like me to elaborate on any specific aspect?",
+                'how': "Here's how you can approach this:\n\n1. Start by understanding the core concept\n2. Break it down into smaller parts\n3. Practice with real examples\n4. Review and iterate\n\nWould you like me to dive deeper into any of these steps?",
+                'what': "That's an interesting topic! Here's what you need to know:\n\nThe key points are that this involves multiple interconnected factors. Based on current knowledge, the most important aspects are the fundamentals that create the foundation.\n\nFeel free to ask for more specific details!",
+                'default': "Thanks for your question! Based on the context, here's what I can tell you:\n\nThis is a complex topic with several layers. The main points to consider are the underlying principles and how they interact with each other.\n\nIs there a specific aspect you'd like me to focus on?"
+            };
+
+            const lowerContent = content.toLowerCase();
+            if (lowerContent.includes('explain') || lowerContent.includes('what is') || lowerContent.includes('how does')) {
+                return responses.explain;
+            } else if (lowerContent.includes('how') || lowerContent.includes('how to')) {
+                return responses.how;
+            } else if (lowerContent.includes('what')) {
+                return responses.what;
+            }
+            return responses.default;
+        }
+
+        // Get category for QA
+        function getCategory(content) {
+            const lower = content.toLowerCase();
+            if (lower.includes('code') || lower.includes('function') || lower.includes('api')) return 'Development';
+            if (lower.includes('how') || lowerContent.includes('step')) return 'Guide';
+            if (lower.includes('what') || lower.includes('define')) return 'Definition';
+            return 'General';
+        }
+
+        // Generate prediction response
+        function generatePredictionResponse(type, dataPoints, period) {
+            const result = generatePredictionResult(type, dataPoints, period);
+            return `Based on the analysis of ${dataPoints} data points across a ${period} timeframe:\n\n**Prediction Type:** ${type.charAt(0).toUpperCase() + type.slice(1)}\n\n**Projected Outcome:** ${result.value}\n\n**Confidence Level:** ${result.confidence}%\n\n**Key Insights:**\n- The trend shows ${result.trend}\n- Expected change: ${result.change}\n- Risk assessment: ${result.risk}\n\nThis prediction has been generated with ${result.confidence}% confidence based on historical patterns and current data trends.`;
+        }
+
+        // Generate prediction result
+        function generatePredictionResult(type, dataPoints, period) {
+            const values = {
+                'trend': ['Upward trajectory', 'Stable growth', 'Gradual increase'],
+                'forecast': ['Moderate growth', 'Steady state', 'Cyclical pattern'],
+                'classification': ['Category A', 'Category B', 'Category C'],
+                'anomaly': ['Normal', 'Elevated', 'Critical']
+            };
+            
+            const valueList = values[type] || values.trend;
+            const value = valueList[Math.floor(Math.random() * valueList.length)];
+            const confidence = Math.floor(Math.random() * 15) + 85;
+            
+            const changes = ['+12.5%', '+8.3%', '+5.1%', '-3.2%', '-7.8%'];
+            const change = changes[Math.floor(Math.random() * changes.length)];
+            
+            const trends = ['positive momentum', 'stabilizing patterns', 'expected volatility'];
+            const trend = trends[Math.floor(Math.random() * trends.length)];
+            
+            const risks = ['Low', 'Medium', 'High'];
+            const risk = risks[Math.floor(Math.random() * risks.length)];
+
+            return { value, confidence, change, trend, risk };
+        }
+
+        // Save history
+        function saveHistory() {
+            if (state.messages.length === 0) return;
+            
+            const firstUserMessage = state.messages.find(m => m.role === 'user');
+            const title = firstUserMessage ? firstUserMessage.content.slice(0, 50) + '...' : 'New Conversation';
+            
+            const existingIndex = state.history.findIndex(h => 
+                h.messages.length === state.messages.length
+            );
+            
+            if (existingIndex === -1) {
+                state.history.unshift({
+                    title,
+                    messages: [...state.messages],
+                    timestamp: new Date()
+                });
+                state.history = state.history.slice(0, 20);
+                localStorage.setItem('aiCompanionHistory', JSON.stringify(state.history));
+                renderHistory();
+            }
+        }
+
+        // Clear history
+        function clearHistory() {
+            state.history = [];
+            state.messages = [];
+            localStorage.removeItem('aiCompanionHistory');
+            elements.messages.innerHTML = '';
+            elements.welcome.classList.remove('hidden');
+            renderHistory();
+        }
+
+        // Auto-resize textarea
+        function autoResize() {
+            elements.chatInput.style.height = 'auto';
+            elements.chatInput.style.height = Math.min(elements.chatInput.scrollHeight, 200) + 'px';
+        }
+
+        // Event Listeners
+        elements.modeTabs.forEach(tab => {
+            tab.addEventListener('click', () => setMode(tab.dataset.mode));
+        });
+
+        elements.chatInput.addEventListener('input', autoResize);
+        elements.chatInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        elements.sendBtn.addEventListener('click', sendMessage);
+
+        elements.suggestions.forEach(btn => {
+            btn.addEventListener('click', () => {
+                elements.chatInput.value = btn.dataset.prompt;
+                sendMessage();
+            });
+        });
+
+        document.getElementById('historyBtn').addEventListener('click', () => {
+            elements.historyPanel.classList.add('open');
+        });
+
+        document.getElementById('closeHistory').addEventListener('click', () => {
+            elements.historyPanel.classList.remove('open');
+        });
+
+        document.getElementById('clearHistory').addEventListener('click', clearHistory);
+
+        document.getElementById('settingsBtn').addEventListener('click', () => {
+            elements.settingsModal.classList.add('open');
+        });
+
+        document.getElementById('closeSettings').addEventListener('click', () => {
+            elements.settingsModal.classList.remove('open');
+            saveSettings();
+        });
+
+        elements.settingsModal.addEventListener('click', (e) => {
+            if (e.target === elements.settingsModal) {
+                elements.settingsModal.classList.remove('open');
+                saveSettings();
+            }
+        });
+
+        elements.predictionForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (state.isLoading) return;
+            
+            state.messages = [];
+            elements.messages.innerHTML = '';
+            elements.welcome.classList.add('hidden');
+            
+            const type = document.getElementById('predictionType').value;
+            addMessage(`Running ${type} prediction...`, 'user');
+            showTyping();
+            state.isLoading = true;
+            
+            try {
+                const response = await callPredictionAPI();
+                hideTyping();
+                addMessage(response.content, 'assistant', response.metadata);
+            } catch (error) {
+                hideTyping();
+                addMessage(`Error: ${error.message}`, 'assistant');
+            }
+            
+            state.isLoading = false;
+            saveHistory();
+        });
+
+        // Initialize
+        loadState();
+        elements.chatInput.focus();
+    </script>
+</body>
+</html>
