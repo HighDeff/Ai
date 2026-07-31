@@ -1628,8 +1628,58 @@
             };
         }
 
-        // Generate demo response
+        // Generate demo response with real knowledge base
         function generateDemoResponse(content) {
+            const lowerContent = content.toLowerCase();
+            
+            // Knowledge base for common topics
+            const knowledgeBase = {
+                // Diamond
+                'diamond': {
+                    keywords: ['diamond', 'diamonds'],
+                    answer: "A **diamond** is a rare, naturally occurring mineral composed of carbon atoms arranged in a crystal structure.\n\n**Key Facts:**\n- **Hardness**: Rated 10 on the Mohs scale - the hardest natural substance\n- **Formation**: Created under extreme pressure and heat 150-200 km deep in Earth's mantle\n- **Uses**: Primarily used in jewelry, but also in industrial cutting tools\n- **Value**: Determined by the 4 Cs: Cut, Clarity, Color, and Carat\n- **Famous Sources**: South Africa, Russia, Botswana, Canada\n\nDiamonds are valued for their exceptional brilliance, durability, and rarity.",
+                    category: 'Science'
+                },
+                // Python
+                'python': {
+                    keywords: ['python'],
+                    answer: "**Python** is a high-level, interpreted programming language known for its simplicity and readability.\n\n**Key Features:**\n- **Easy to learn**: Clear, English-like syntax\n- **Versatile**: Used in web development, data science, AI, automation, and more\n- **Large ecosystem**: Extensive libraries like NumPy, Pandas, TensorFlow\n- **Cross-platform**: Runs on Windows, Mac, Linux\n\n**Example:**\n```python\nprint('Hello, World!')\n```\n\nPython is one of the most popular programming languages today.",
+                    category: 'Development'
+                },
+                // Machine Learning
+                'machine learning': {
+                    keywords: ['machine learning', 'ml model'],
+                    answer: "**Machine Learning (ML)** is a subset of artificial intelligence that enables computers to learn from data without explicit programming.\n\n**Types of ML:**\n1. **Supervised Learning**: Learning from labeled data\n2. **Unsupervised Learning**: Finding patterns in unlabeled data\n3. **Reinforcement Learning**: Learning through trial and error\n\n**Common Algorithms:**\n- Decision Trees, Random Forests\n- Neural Networks, Deep Learning\n- Support Vector Machines\n- K-Means Clustering\n\nML is used in recommendation systems, image recognition, natural language processing, and many other applications.",
+                    category: 'Technology'
+                },
+                // Water
+                'water': {
+                    keywords: ['water', 'h2o'],
+                    answer: "**Water (H₂O)** is a transparent, odorless, tasteless liquid essential for all known forms of life.\n\n**Key Properties:**\n- **Chemical formula**: H₂O (two hydrogen atoms, one oxygen)\n- **Boiling point**: 100°C (212°F)\n- **Freezing point**: 0°C (32°F)\n- **Unique**: Expands when frozen (ice floats)\n\n**Importance:**\n- Covers 71% of Earth's surface\n- Essential for metabolism, agriculture, industry\n- Three states: solid (ice), liquid (water), gas (vapor)\n\nWater is often called the 'universal solvent' due to its ability to dissolve many substances.",
+                    category: 'Science'
+                },
+                // Photosynthesis
+                'photosynthesis': {
+                    keywords: ['photosynthesis'],
+                    answer: "**Photosynthesis** is the process by which plants convert sunlight into chemical energy.\n\n**The Equation:**\n```\n6CO₂ + 6H₂O + Light → C₆H₁₂O₆ + 6O₂\n```\n\n**Process:**\n1. **Light Absorption**: Chlorophyll absorbs light energy\n2. **Water Splitting**: H₂O is broken into oxygen and electrons\n3. **CO₂ Conversion**: Electrons help convert CO₂ into glucose\n4. **Oxygen Release**: O₂ is released as a byproduct\n\nPhotosynthesis is the foundation of most food chains and produces the oxygen we breathe.",
+                    category: 'Science'
+                },
+                // AI
+                'artificial intelligence': {
+                    keywords: ['artificial intelligence', ' ai '],
+                    answer: "**Artificial Intelligence (AI)** is the simulation of human intelligence in machines.\n\n**Key Areas:**\n- **Machine Learning**: Systems that learn from data\n- **Natural Language Processing**: Understanding human language\n- **Computer Vision**: Interpreting images and videos\n- **Robotics**: Physical AI systems\n\n**Applications:**\n- Virtual assistants (Siri, Alexa)\n- Self-driving cars\n- Medical diagnosis\n- Game playing (Chess, Go)\n\nAI is transforming industries and raising important ethical questions about bias, privacy, and employment.",
+                    category: 'Technology'
+                }
+            };
+
+            // Check knowledge base first
+            for (const [topic, data] of Object.entries(knowledgeBase)) {
+                if (data.keywords.some(kw => lowerContent.includes(kw))) {
+                    return data.answer;
+                }
+            }
+
+            // Fallback to generic responses
             const responses = {
                 'explain': "Great question! Let me break this down in a way that's easy to understand. Think of it like building with blocks - each concept connects to create a larger picture. Would you like me to elaborate on any specific aspect?",
                 'how': "Here's how you can approach this:\n\n1. Start by understanding the core concept\n2. Break it down into smaller parts\n3. Practice with real examples\n4. Review and iterate\n\nWould you like me to dive deeper into any of these steps?",
@@ -1637,7 +1687,6 @@
                 'default': "Thanks for your question! Based on the context, here's what I can tell you:\n\nThis is a complex topic with several layers. The main points to consider are the underlying principles and how they interact with each other.\n\nIs there a specific aspect you'd like me to focus on?"
             };
 
-            const lowerContent = content.toLowerCase();
             if (lowerContent.includes('explain') || lowerContent.includes('what is') || lowerContent.includes('how does')) {
                 return responses.explain;
             } else if (lowerContent.includes('how') || lowerContent.includes('how to')) {
@@ -1651,8 +1700,20 @@
         // Get category for QA
         function getCategory(content) {
             const lower = content.toLowerCase();
+            
+            // Check knowledge base categories first
+            const knowledgeBase = {
+                'diamond': 'Science', 'python': 'Development', 
+                'machine learning': 'Technology', 'water': 'Science',
+                'photosynthesis': 'Science', 'artificial intelligence': 'Technology'
+            };
+            
+            for (const [topic, category] of Object.entries(knowledgeBase)) {
+                if (lower.includes(topic)) return category;
+            }
+            
             if (lower.includes('code') || lower.includes('function') || lower.includes('api')) return 'Development';
-            if (lower.includes('how') || lowerContent.includes('step')) return 'Guide';
+            if (lower.includes('how') || lower.includes('step')) return 'Guide';
             if (lower.includes('what') || lower.includes('define')) return 'Definition';
             return 'General';
         }
